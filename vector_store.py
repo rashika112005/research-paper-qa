@@ -1,32 +1,28 @@
-import chromadb
+import faiss
+import numpy as np
 
-# Create a local ChromaDB client — stores data on your machine
-client = chromadb.Client()
+# Global storage
+chunk_store = []
+index = None
 
 def store_chunks(chunks, embeddings):
-    # Delete collection if it already exists (for when user uploads a new PDF)
-    existing = [c.name for c in client.list_collections()]
-    if "research_papers" in existing:
-        client.delete_collection("research_papers")
+    global chunk_store, index
     
-    # Create fresh collection
-    collection = client.create_collection("research_papers")
+    chunk_store = chunks
+    embeddings_np = np.array(embeddings).astype('float32')
     
-    # Add chunks with their embeddings
-    collection.add(
-        documents=chunks,
-        embeddings=embeddings.tolist(),
-        ids=[str(i) for i in range(len(chunks))]
-    )
+    # Create FAISS index
+    dimension = embeddings_np.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(embeddings_np)
     
-    return collection
-
+    return index
 
 def search_chunks(collection, query_embedding, n_results=7):
-    results = collection.query(
-        query_embeddings=[query_embedding.tolist()],
-        n_results=n_results
-    )
+    global chunk_store
     
-    # Return just the text chunks, not the metadata
-    return results["documents"][0]
+    query_np = np.array([query_embedding]).astype('float32')
+    distances, indices = collection.search(query_np, n_results)
+    
+    results = [chunk_store[i] for i in indices[0] if i < len(chunk_store)]
+    return results
