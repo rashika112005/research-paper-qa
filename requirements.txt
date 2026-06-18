@@ -1,7 +1,7 @@
 streamlit
 pymupdf
 sentence-transformers
-chromadb
+chromadb==0.4.24
 google-genai
 python-dotenv
 groq
